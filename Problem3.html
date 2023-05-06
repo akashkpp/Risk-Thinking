@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Highcharts Example</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highcharts/9.2.2/css/highcharts.min.css" />
+</head>
+
+<body>
+    <input type="file" id="input" onchange="loadFile()">
+    <br>
+    <br>
+    <label for="asset">Select Asset:</label>
+    <select id="asset" onchange="updateChart()"></select>
+    <br>
+    <br>
+    <label for="lat">Select Lat:</label>
+    <select id="lat" onchange="updateChart()"></select>
+    <br>
+    <br>
+    <label for="long">Select Long:</label>
+    <select id="long" onchange="updateChart()"></select>
+    <br>
+    <br>
+    <label for="business">Select Business Category:</label>
+    <select id="business" onchange="updateChart()"></select>
+    <br>
+    <div id="chart-container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let assets = [];
+        let lats = [];
+        let longs = [];
+        let businesses = [];
+
+        function loadFile() {
+            const input = document.getElementById('input');
+            const reader = new FileReader();
+            reader.onload = function () {
+                const fileData = reader.result;
+                const wb = XLSX.read(fileData, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                data = XLSX.utils.sheet_to_json(ws);
+                console.log(data);
+                populateOptions();
+                updateChart();
+            };
+            reader.readAsBinaryString(input.files[0]);
+        }
+
+        function populateOptions() {
+            assets = [...new Set(data.map(d => d['Asset Name']))];
+            lats = [...new Set(data.map(d => d['Lat']))];
+            longs = [...new Set(data.map(d => d['Long']))];
+            businesses = [...new Set(data.map(d => d['Business Category']))];
+            assets.forEach(a => {
+                const option = document.createElement('option');
+                option.text = a;
+                document.getElementById('asset').add(option);
+            });
+            lats.forEach(l => {
+                const option = document.createElement('option');
+                option.text = l;
+                document.getElementById('lat').add(option);
+            });
+            longs.forEach(l => {
+                const option = document.createElement('option');
+                option.text = l;
+                document.getElementById('long').add(option);
+            });
+            businesses.forEach(b => {
+                const option = document.createElement('option');
+                option.text = b;
+                document.getElementById('business').add(option);
+            });
+        }
+
+        function updateChart() {
+  const asset = document.getElementById('asset').value;
+  let filteredData = data.filter(d => {
+    if (asset && d["Asset Name"] !== asset) return false;
+    return true;
+  });
+
+  const uniqueYears = [...new Set(filteredData.map(d => d.Year))];
+  const filteredYears = uniqueYears.filter(year => filteredData.some(d => d.Year === year)).sort();
+const yearData = uniqueYears.map(year => {
+  const yearFilteredData = filteredData.filter(d => d.Year === year);
+  const sum = yearFilteredData.reduce((acc, d) => acc + d["Risk Rating"], 0);
+  const average = sum / yearFilteredData.length;
+  return { x: year, y: average, assetName: yearFilteredData[0]["Asset Name"], riskRating: average, riskFactors: yearFilteredData[0]["Risk Factors"] };
+});
+
+  const chartOptions = {
+    chart: {
+      type: 'column',
+      zoomType: 'x'
+    },
+    title: {
+      text: 'Asset Value'
+    },
+    xAxis: {
+      type: 'Years',
+      categories: filteredYears,
+      labels: {
+      step: 10 // change the step size as needed
+    }
+    },
+    yAxis: {
+      title: {
+        text: 'Risk Rating'
+      }
+    },
+    tooltip: {
+    formatter: function () {
+      const point = this.point;
+      const assetName = point.assetName;
+      const riskRating = point.riskRating;
+      const riskFactors = point.riskFactors;
+      const year = point.x;
+      const tooltip = `<b>Asset Name:</b> ${assetName}<br>
+                       <b>Risk Rating:</b> ${riskRating}<br>
+                       <b>Risk Factors:</b> ${riskFactors}<br>
+                       <b>Year:</b> ${year}<br>`;
+      return tooltip;
+    }
+  },
+    series: [
+      {
+        name: 'Risk Rating',
+        data: yearData
+      }
+    ]
+  };
+
+  Highcharts.chart('chart-container', chartOptions);
+}
+
+
+
+    </script>
+    </body>
+    </html>

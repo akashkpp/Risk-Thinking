@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Load Excel file using SheetJS</title>
+</head>
+
+<body>
+    <input type="file" id="input" onchange="loadFile()">
+    <br>
+    <br>
+    <label for="year">Select year:</label>
+    <select id="year" onchange="filterTable()"></select>
+    <br>
+    <br>
+    <label for="search">Search risk factors:</label>
+    <input type="text" id="search" onkeyup="filterTable()">
+    <table id="table"></table>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+    <script>
+           var originalData = [];
+    var sortOrder = "asc";
+
+    function loadFile() {
+      var input = document.getElementById('input');
+      var file = input.files[0];
+      var yearSelect = document.getElementById('year');
+      yearSelect.innerHTML = "";
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var data = new Uint8Array(event.target.result);
+        var workbook = XLSX.read(data, {type: 'array'});
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        originalData = rows;
+        var years = new Set(rows.map(function(row) {
+          return row[6] !== "Year" ? row[6] : null;
+        }).filter(function(year) {
+          return year !== null;
+        }));
+        Array.from(years).sort().forEach(function(year) {
+          var option = document.createElement("option");
+          option.value = year;
+          option.text = year;
+          yearSelect.add(option);
+        });
+        yearSelect.value = yearSelect.options[0].value;
+        filterTable();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function filterTable() {
+            var yearSelect = document.getElementById('year');
+            var selectedYear = yearSelect.value;
+            var searchInput = document.getElementById('search');
+            var searchQuery = searchInput.value.trim().toLowerCase();
+            var table = document.getElementById('table');
+            var filteredData = originalData.filter(function (row) {
+                return row[6] == selectedYear && row[5].toLowerCase().indexOf(searchQuery) !== -1;
+            });
+            var html = "<thead><tr><th>Asset Name</th><th>Latitude</th><th>Longitude</th><th>Business Category</th><th>Risk Rating</th><th>Risk Factors</th><th>Year</th></tr></thead><tbody>";
+            filteredData.forEach(function (row) {
+                html += "<tr>";
+                row.forEach(function (cell) {
+                    html += "<td>" + cell + "</td>";
+                });
+                html += "</tr>";
+            });
+            html += "</tbody>";
+            table.innerHTML = html;
+            var headers = document.querySelectorAll("#table th");
+            headers.forEach(function (header) {
+                header.onclick = function () {
+                    var column = header.textContent;
+                    sortTable(column);
+                };
+            });
+        }
+    function sortTable(column) {
+  var table = document.getElementById('table');
+  var tbody = table.querySelector('tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+
+  // Determine the index of the column to sort by
+  var columnIndex = Array.from(table.querySelector('thead').querySelectorAll('th'))
+    .findIndex(th => th.textContent === column);
+
+  // Sort the rows based on the contents of the specified column
+  rows.sort(function(row1, row2) {
+    var cell1 = row1.querySelectorAll('td')[columnIndex].textContent;
+    var cell2 = row2.querySelectorAll('td')[columnIndex].textContent;
+    if (isNaN(cell1) || isNaN(cell2)) {
+      // Compare strings lexically
+      return cell1.localeCompare(cell2);
+    } else {
+      // Compare numbers numerically
+      return parseFloat(cell1) - parseFloat(cell2);
+    }
+  });
+
+  // Reverse the order if the current sort order is descending
+  if (sortOrder === "desc") {
+    rows.reverse();
+  }
+
+  // Update the sort order
+  sortOrder = sortOrder === "asc" ? "desc" : "asc";
+
+  // Re-add the rows to the table in the new order
+  rows.forEach(function(row) {
+    tbody.appendChild(row);
+  });
+}
+
+
+    </script>
+</body>
+
+</html>

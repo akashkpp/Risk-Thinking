@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Leaflet Quick Start Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+        integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <!-- noUiSlider CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.css" />
+</head>
+<style>
+    #mapid {
+        height: 550px;
+    }
+
+    /* noUiSlider style */
+    .noUi-connect {
+        background: #f03;
+    }
+</style>
+
+<body>
+    <div id="mapid"></div>
+    <div class="conatiner mt-5">
+        <div class="row">
+            <div class="col-md-3"></div>
+            <div class="col-md-3">
+                <input class="form-control" type="file" id="input" accept=".xls,.xlsx"  >
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary" id="button">Convert</button>
+            </div>
+<!-- <div class="col-md-12">
+    <pre id="jsondata"></pre>
+</div> -->
+        </div>
+    </div>
+    <!-- <div id="decade-selector">
+        <select id="decade-select">
+            <option value="1960">1960s</option>
+            <option value="1970">1970s</option>
+            <option value="1980">1980s</option>
+            <option value="1990">1990s</option>
+            <option value="2000">2000s</option>
+            <option value="2010">2010s</option>
+            <option value="2020">2020s</option>
+        </select>
+    </div> -->
+    <label for="year-select">Select a year:</label>
+<select id="year-select">
+  <option value="">--Select Year--</option>
+</select>
+<!-- <button id="filter-button">Filter</button> -->
+<table id="table"></table>
+    <!-- <input type="file" id="input" onchange="loadFile()">
+    <table id="table"></table> -->
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js"></script>
+<script>
+    function loadFile() {
+      var input = document.getElementById('input');
+      var file = input.files[0];
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var data = new Uint8Array(event.target.result);
+        var workbook = XLSX.read(data, { type: 'array' });
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var html = XLSX.utils.sheet_to_html(sheet);
+        document.getElementById('table').innerHTML = html;
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  </script>
+  <script>
+let selectedFile;
+let obj;
+
+console.log(window.XLSX);
+
+document.getElementById('input').addEventListener("change", (event) => {
+    selectedFile = event.target.files[0];
+})
+
+let data=[{
+    "name":"jayanth",
+    "data":"scd",
+    "abc":"sdef"
+}]
+
+document.getElementById('button').addEventListener("click", () => {
+    XLSX.utils.json_to_sheet(data, 'out.xlsx');
+    if(selectedFile){
+        let fileReader = new FileReader();
+        fileReader.readAsBinaryString(selectedFile);
+        fileReader.onload = (event)=>{
+            let data = event.target.result;
+            let workbook = XLSX.read(data,{type:"binary"});
+            console.log(workbook);
+            workbook.SheetNames.forEach(sheet => {
+                let rowObject = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[sheet]);
+                console.log(rowObject);
+                const stringified = JSON.stringify(rowObject,undefined,4);
+                obj = JSON.parse(stringified);
+                console.log(obj[0]['Lat']);
+                // document.getElementById("jsondata").innerHTML = stringified;
+            });
+        }
+    }
+});
+
+// Define a function that returns a Promise
+function waitForLoad() {
+  return new Promise((resolve, reject) => {
+    let interval = setInterval(() => {
+      if (obj !== undefined) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 100);
+  });
+}
+
+var mymap = L.map('mapid').setView([43.6532, -79.3832], 4);
+
+ 
+ // Add a tile layer to the map
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+     attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+     maxZoom: 18,
+ }).addTo(mymap);
+ 
+
+// Use the Promise to wait for the file to load before accessing `obj`
+waitForLoad().then(() => {
+  console.log(obj[0]);
+     // Initialize the map and set its view to the center of the map
+ 
+ // // Add a circle to the map for 1960s
+ // var circle = L.circle([43.6532, -79.3832], {
+ //     color: 'red',
+ //     fillColor: '#f03',
+ //     fillOpacity: 0.5,
+ //     radius: 500
+ // }).addTo(mymap);
+ 
+// Get the unique years from the JSON object using a Set
+var years = new Set(obj.map(function(item) {
+  return item.Year;
+}));
+
+var sortedYears = Array.from(years).sort();
+
+// Create the dropdown options from the Set
+var select = document.getElementById("year-select");
+sortedYears.forEach(function(Year) {
+  var option = document.createElement("option");
+  option.text = Year;
+  select.add(option);
+});
+ 
+ 
+// Define the colors for each year
+var yearColors = {
+  "2030": "red",
+  "2040": "blue",
+  "2050": "green",
+  "2060": "orange",
+  "2070": "purple"
+};
+
+// Define the colors for each Risk Rating
+var ratingColors = {
+  0.0: "red",
+  0.2: "orange",
+  0.4: "yellow",
+  0.6: "green",
+  0.8: "blue",
+  1.0: "purple"
+};
+
+
+// Create a function to get the color for a given year
+function getYear(year) {
+  return yearColors[year]; // default to gray if no color is defined for the year
+}
+
+function getColor(rating) {
+  // Round the Risk Rating to the nearest 0.2 to match the keys in ratingColors
+  var roundedRating = Math.round(rating * 5) / 5;
+  return ratingColors[roundedRating] || "gray"; // default to gray if no color is defined for the rating
+}
+
+// Create an array to store all circles
+var circles = [];
+
+for (var i = 0; i < obj.length; i++) {
+  var lat = obj[i].Lat;
+  var lng = obj[i].Long;
+  var name = obj[i]["Asset Name"];
+  var category = obj[i]["Business Category"];
+  var circle = L.circle([lat, lng], {
+    color: getColor(obj[i]["Risk Rating"]), // set the color based on the Risk Rating
+    fillColor: getColor(obj[i]["Risk Rating"]),
+    fillOpacity: 0.5,
+    radius: 1000
+  }).addTo(mymap);
+
+  circle.bindPopup("<b>" + name + "</b><br>" + category);
+
+  if (obj[i].Year === sortedYears[0]) { // show only the circles for the selected year
+    circle.addTo(mymap);
+  }
+
+  if (obj[i].Year === sortedYears[0]) { // add the circle to the array only if its Year matches the selected year
+    circles.push(circle);
+  }
+}
+
+// Define the function to update the map based on the selected year
+function updateMap() {
+
+    circles = [];
+
+    for (var i = 0; i < obj.length; i++) {
+  var lat = obj[i].Lat;
+  var lng = obj[i].Long;
+  var name = obj[i]["Asset Name"];
+  var category = obj[i]["Business Category"];
+  var circle = L.circle([lat, lng], {
+    color: getColor(obj[i]["Risk Rating"]), // set the color based on the Risk Rating
+    fillColor: getColor(obj[i]["Risk Rating"]),
+    fillOpacity: 0.5,
+    radius: 1000
+  }).addTo(mymap);
+
+  circle.bindPopup("<b>" + name + "</b><br>" + category);
+
+  if (obj[i].Year === sortedYears[0]) { // show only the circles for the selected year
+    circle.addTo(mymap);
+  }
+
+  circles.push(circle);
+}
+  // Get the selected year from the dropdown
+  var year = document.getElementById("year-select").value;
+  console.log("1", circles.length)
+//   console.log("3", sortedYears.length)
+
+  
+ 
+   
+    // // Clear the map and the circles array
+    // mymap.eachLayer(function(layer) {
+    //   if (layer !== basemapLayer) {
+    //     mymap.removeLayer(layer);
+    //   }
+    // });
+    // circles = [];
+
+    for (var i = 0; i < obj.length; i++) {
+  if (obj[i].Year === year) {
+    var lat = obj[i].Lat;
+      var lng = obj[i].Long;
+      var name = obj[i]["Asset Name"];
+      var category = obj[i]["Business Category"];
+      var circle = L.circle([lat, lng], {
+        color: getColor(obj[i]["Risk Rating"]),
+        fillColor: getColor(obj[i]["Risk Rating"]),
+        fillOpacity: 0.5,
+        radius: 1000
+      }).addTo(mymap);
+      circles.push(circle);
+      circle.bindPopup("<b>" + name + "</b><br>" + category);
+  } else {
+    // remove circles that don't match the selected year
+    for (var j = 0; j < circles.length; j++) {
+        if (circles[j].getLatLng().lat === obj[i].Lat &&
+            circles[j].getLatLng().lng === obj[i].Long &&
+            circles[j].options.color !== getYear(year)) {
+          mymap.removeLayer(circles[j]);
+          circles.splice(j, 1);
+          
+      }
+    }
+  }
+
+}
+
+
+
+    console.log("2", circles.length)
+
+
+
+
+
+//   // Update the color of the circle based on the selected year
+//   circle.setStyle({ color: getColor(year), fillColor: getColor(year) });
+// document.getElementById("year-select").addEventListener("change", updateMap);
+}
+ 
+// Add an event listener to the dropdown to update the map when the user selects a different year
+document.getElementById("year-select").addEventListener("change", updateMap);
+ 
+
+
+//  // Year selection dropdown
+//  const yearDropdown = document.getElementById("yearDropdown");
+
+// // Data table
+// const dataTable = document.getElementById("dataTable");
+
+// // Display data for selected year
+// function displayData() {
+//   const selectedYear = parseInt(yearDropdown.value);
+//   const filteredData = Obj.filter(item => item.Year === selectedYear);
+//   renderTable(filteredData);
+// }
+
+// // Render data table
+// function renderTable(Obj) {
+//   dataTable.innerHTML = "";
+
+//   // Table header
+//   const headerRow = document.createElement("tr");
+//   Object.keys(Obj[0]).forEach(key => {
+//     const th = document.createElement("th");
+//     th.textContent = key;
+//     headerRow.appendChild(th);
+//   });
+//   dataTable.appendChild(headerRow);
+
+//   // Table rows
+//   Obj.forEach(item => {
+//     const row = document.createElement("tr");
+//     Object.values(item).forEach(value => {
+//       const td = document.createElement("td");
+//       td.textContent = value;
+//       row.appendChild(td);
+//     });
+//     dataTable.appendChild(row);
+//   });
+// }
+// console.log(dataTable)
+
+// // Sorting functionality
+// const sortButtons = dataTable.querySelectorAll("th");
+// sortButtons.forEach(button => {
+//   button.addEventListener("click", () => {
+//     const sortKey = button.textContent;
+//     const sortOrder = button.dataset.order === "asc" ? "desc" : "asc";
+//     sortButtons.forEach(btn => btn.dataset.order = "");
+//     button.dataset.order = sortOrder;
+//     const sortedData = data.sort((a, b) => {
+//       if (a[sortKey] > b[sortKey]) return sortOrder === "asc" ? 1 : -1;
+//       if (a[sortKey] < b[sortKey]) return sortOrder === "asc" ? -1 : 1;
+//       return 0;
+//     });
+//     renderTable(sortedData);
+//   });
+// });
+
+// // Filter functionality
+// const filterInput = document.getElementById("filterInput");
+// filterInput.addEventListener("input", () => {
+//   const filterValue = filterInput.value.toLowerCase().trim();
+//   const filteredData = Obj.filter(item => {
+//     const riskFactors = item["Risk Factors"].join(" ");
+//     return (
+//       item["Asset Name"].toLowerCase().includes(filterValue) ||
+//       item["Business Category"].toLowerCase().includes(filterValue) ||
+//       item["Risk Rating"].toLowerCase().includes(filterValue) ||
+//       riskFactors.toLowerCase().includes(filterValue)
+//     );
+//   });
+//   renderTable(filteredData);
+// });
+
+// // Initial data display
+// displayData();
+
+
+//   console.log(tableRows);
+
+
+
+
+
+});
+</script>
+<script>
+
+
+ </script>
+</html>
